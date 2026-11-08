@@ -1,0 +1,16 @@
+# Puku CLI agent detection for Herdr.
+# Fallback screen-detection manifest. Used when hooks are not installed
+# or when the hook-reported state drifts from the visible screen.
+# Maps Puku prompt markers to Herdr agent states.
+
+[state.working]
+match = "thinking|searching|reading|writing|running"
+# Regex against the pane's visible text. Any match means working.
+
+[state.blocked]
+match = "Allow this|Do you want to proceed|approve"
+# The authorization prompt means the agent waits for approval.
+
+[state.idle]
+match = "^> $"
+# Bare prompt means the agent finished and waits for input.
