@@ -89,6 +89,4 @@ tests/run.sh           Test suite
 - `Notification` with `notification_type` `permission_prompt` or `elicitation_dialog` reports `blocked` (belt-and-braces alongside `PermissionRequest`/`Elicitation`); other notification types are ignored.
 - The screen-detection fallback was removed: Herdr cannot identify Puku's process, so a detection manifest would never match.
 
-## License
 
-MIT.
