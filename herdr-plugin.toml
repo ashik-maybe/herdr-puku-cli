@@ -5,7 +5,7 @@
 #   Herdr owns this file's schema: id, name, version, min_herdr_version are
 #   required; platforms declares where it can run (linux, macos).
 #   Actions are user-invoked commands; see `herdr plugin action list`.
-#   Install from git:  herdr plugin install <owner>/herdr-puku-cli --ref plugin-support
+#   Install from git:  herdr plugin install ashik-maybe/herdr-puku-cli --ref plugin-support
 #   Or link a local checkout for development:
 #                      herdr plugin link /path/to/herdr-puku-cli
 

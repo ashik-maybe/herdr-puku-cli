@@ -25,7 +25,7 @@ Two ways. Pick one.
 ### As a Herdr plugin (from git)
 
 ```bash
-herdr plugin install <owner>/herdr-puku-cli --ref plugin-support
+herdr plugin install ashik-maybe/herdr-puku-cli --ref plugin-support
 herdr plugin action invoke herdr-puku-cli.setup
 ```
 
