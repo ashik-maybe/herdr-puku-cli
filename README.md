@@ -84,7 +84,8 @@ tests/run.sh           Test suite
 
 ## Notes
 
-- Native session restore (resume Puku after a Herdr restart) is **not** supported: puku-cli documents no session-resume flag, so there is no correct resume command to hand Herdr.
+- Native session restore is wired up: `SessionStart` payloads carry `session_id`, so the adapter also reports `--agent-session-id <id> -- puku-cli --resume <id>` to Herdr. After a Herdr server restart, Herdr can resume the pane with the native puku resume command in the same cwd. Fires only for `SessionStart` with a well-formed session id; `--resume` support verified against puku-cli 1.8.68 (`dist/cli.mjs`) and smoke-tested live in a container.
+- `Notification` with `notification_type` `permission_prompt` or `elicitation_dialog` reports `blocked` (belt-and-braces alongside `PermissionRequest`/`Elicitation`); other notification types are ignored.
 - The screen-detection fallback was removed: Herdr cannot identify Puku's process, so a detection manifest would never match.
 
 ## License

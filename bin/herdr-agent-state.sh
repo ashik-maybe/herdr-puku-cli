@@ -20,7 +20,8 @@
 #     synchronously on its hot path, so we background the Herdr call.
 #
 # STATE PROTOCOL (semantic state Herdr understands: idle, working, blocked)
-#   SessionStart       → working   new session; identity established
+#   SessionStart       → working + `--agent-session-id <sid> -- puku-cli --resume <sid>`
+#                        so Herdr can resume the pane after a server restart
 #   UserPromptSubmit   → working   user asked for something; turn begins
 #   PreToolUse         → working   a tool call is about to run
 #   Elicitation        → blocked   model asked the user a structured question
@@ -30,12 +31,17 @@
 #   SessionEnd         → release   session over; hand the pane back to a shell.
 #                        Herdr clears the pane's agent state immediately
 #                        instead of waiting for its idle-prompt heuristic.
+#   Notification
+#     permission_prompt / elicitation_dialog → blocked   belt-and-braces for a
+#                        permission dialog that stops the world; matches
+#                        PermissionRequest. Other notification types (idle_prompt,
+#                        auth_success, …) report nothing.
 #   (anything else)    → no-op
 #
 # ORDERING
 #   Herdr ignores reports whose --seq is not higher than the last accepted
 #   seq from the same source. Hook fires can be reordered, so every report
-#   carries a millisecond timestamp as --seq.
+#   carries a microsecond timestamp as --seq.
 #
 # ENVIRONMENT (injected by Herdr into every pane; puku-cli inherits them)
 #   HERDR_ENV=1        set inside Herdr-managed panes; absent elsewhere
@@ -79,6 +85,8 @@ HERDR_BIN="${HERDR_BIN_PATH:-herdr}"
 INPUT="$(cat)"
 EVENT="$(printf '%s' "$INPUT" | jq -r '.hook_event_name // empty' 2>/dev/null)"
 TOOL="$(printf '%s' "$INPUT"  | jq -r '.tool_name // empty'       2>/dev/null)"
+NOTIF="$(printf '%s' "$INPUT" | jq -r '.notification_type // empty' 2>/dev/null)"
+SID="$(printf '%s' "$INPUT"   | jq -r '.session_id // empty'       2>/dev/null)"
 
 # --- report <state> [message] -------------------------------------------------
 # Fire-and-forget: background the CLI call, discard all output, never fail.
@@ -97,6 +105,20 @@ report() {
   fi
 }
 
+# --- report with native session restore argv ------------------------------------
+# SessionStart carries session_id, so we report it together with the exact
+# puku-cli resume command. After a Herdr server restart, Herdr can offer to
+# reopen the pane running `puku-cli --resume <id>` in the same cwd. Rules for
+# the resume argv: first element a plain command name (no slashes/wrappers),
+# no apostrophes, ≤64 args total per pane. `puku-cli --resume <uuid>` qualifies.
+report_session() {
+  "$HERDR_BIN" pane report-agent "$HERDR_PANE_ID" \
+    --source "$SOURCE" --agent "$AGENT" \
+    --state working --seq "$SEQ" \
+    --agent-session-id "$SID" -- puku-cli --resume "$SID" \
+    >/dev/null 2>&1 &
+}
+
 # --- release -------------------------------------------------------------------
 # End this source's lifecycle authority for the pane: Herdr clears the agent
 # state right away instead of detecting the shell prompt on its own.
@@ -107,8 +129,22 @@ release() {
 }
 
 case "$EVENT" in
-  SessionStart|UserPromptSubmit|PreToolUse)
+  SessionStart)
+    if [ -n "$SID" ] && [[ "$SID" =~ ^[A-Za-z0-9._-]+$ ]]; then
+      report_session
+    else
+      report working
+    fi
+    ;;
+  UserPromptSubmit|PreToolUse)
     report working
+    ;;
+  Notification)
+    case "$NOTIF" in
+      permission_prompt|elicitation_dialog)
+        report blocked "waiting for answer"
+        ;;
+    esac
     ;;
   Elicitation)
     # The model asked a structured question; nothing to do until the user answers.

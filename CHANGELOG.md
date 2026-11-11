@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.1
+
+- `SessionStart` now also reports `--agent-session-id <sid>` plus resume argv `puku-cli --resume <sid>` to Herdr, enabling native pane resume after a server restart (puku-cli 1.8.68 supports `--resume <id>`; payload `session_id` verified from the bundle's hook schema).
+- `Notification` with `notification_type` `permission_prompt` or `elicitation_dialog` reports `blocked`; other types ignored. Registered in settings.json merge (9 hook entries).
+- Removed `herdr agent explain` from verification docs — unavailable for unsupported custom agents.
+- Documented that reports hold only while puku-cli runs in the pane (Herdr's shell-prompt safety net clears agent state).
+
 ## 0.3.0
 
 - Renamed the project / plugin to `herdr-puku-cli`.

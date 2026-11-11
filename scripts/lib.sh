@@ -66,6 +66,9 @@ settings_install_hooks() {
     | withhook("PermissionRequest";{hooks: [{type: "command", command: $cmd}]})
     | withhook("StopFailure";      {hooks: [{type: "command", command: $cmd}]})
     | withhook("Elicitation";      {hooks: [{type: "command", command: $cmd}]})
+    # Notification is matched against notification_type; the adapter reports
+    # blocked only for permission_prompt/elicitation_dialog (see hook script).
+    | withhook("Notification";     {hooks: [{type: "command", command: $cmd}]})
   ' "$SETTINGS" > "${SETTINGS}.tmp"
   mv "${SETTINGS}.tmp" "$SETTINGS"
 }

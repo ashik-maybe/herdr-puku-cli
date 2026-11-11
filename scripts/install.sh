@@ -43,7 +43,7 @@ do_install() {
 
   log "Installed herdr-puku-cli."
   log "Restart puku-cli, then verify with: herdr agent list"
-  log "(or: herdr agent explain <pane> --json)"
+  log "(or: herdr agent list)"
 }
 
 do_uninstall() {
@@ -63,7 +63,7 @@ do_uninstall() {
 
 do_status() {
   echo "Hook script:  $([ -f "$HOOK_DEST" ] && echo "yes ($HOOK_DEST)" || echo "no")"
-  echo "Hook entries: $(settings_hook_count) in $SETTINGS (8 expected)"
+  echo "Hook entries: $(settings_hook_count) in $SETTINGS (9 expected)"
   legacy_manifest_note
 }
 

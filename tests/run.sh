@@ -66,6 +66,18 @@ run_hook '{"hook_event_name":"Stop"}'
 check "Stop reports idle"                     grep -q -- "--state idle" "$STUB_LOG"
 
 : > "$STUB_LOG"
+run_hook '{"hook_event_name":"Notification","notification_type":"permission_prompt"}'
+check "Notification permission_prompt blocked" grep -q -- "--state blocked" "$STUB_LOG"
+
+: > "$STUB_LOG"
+run_hook '{"hook_event_name":"Notification","notification_type":"idle_prompt"}'
+check "Notification idle_prompt is a no-op"   test ! -s "$STUB_LOG"
+
+: > "$STUB_LOG"
+run_hook '{"hook_event_name":"SessionStart","session_id":"abc-123-def"}'
+check "SessionStart reports working + resume argv" bash -c "grep -q -- '--state working' '$STUB_LOG' && grep -q -- '-- puku-cli --resume abc-123-def' '$STUB_LOG' && grep -q -- '--agent-session-id abc-123-def' '$STUB_LOG'"
+
+: > "$STUB_LOG"
 run_hook '{"hook_event_name":"SessionEnd"}'
 check "SessionEnd releases the agent"         grep -q "release-agent" "$STUB_LOG"
 
@@ -73,13 +85,13 @@ echo "== install =="
 check "install runs"                          bash "$REPO_DIR/scripts/install.sh"
 check "hook copied and executable"            test -x "$PUKU_DIR/hooks/herdr-agent-state.sh"
 N="$(jq '[.hooks | to_entries[] | .value[]] | length' "$PUKU_DIR/settings.json")"
-[ "$N" = "8" ] && ok "8 hook entries installed" || bad "8 hook entries installed (got $N)"
+[ "$N" = "9" ] && ok "9 hook entries installed" || bad "9 hook entries installed (got $N)"
 check "settings.json is valid JSON"           jq empty "$PUKU_DIR/settings.json"
 
 echo "== install is idempotent =="
 bash "$REPO_DIR/scripts/install.sh" >/dev/null
 N="$(jq '[.hooks | to_entries[] | .value[]] | length' "$PUKU_DIR/settings.json")"
-[ "$N" = "8" ] && ok "reinstall keeps 8 entries" || bad "reinstall keeps 8 entries (got $N)"
+[ "$N" = "9" ] && ok "reinstall keeps 9 entries" || bad "reinstall keeps 9 entries (got $N)"
 
 echo "== unrelated hooks survive everywhere =="
 jq '.hooks.SessionStart += [{hooks: [{type: "command", command: "/other/tool.sh"}]}]' \
