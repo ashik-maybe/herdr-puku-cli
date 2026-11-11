@@ -1,14 +1,27 @@
 #!/bin/bash
-# install.sh — install, uninstall, or inspect the Puku CLI ↔ Herdr TUI adapter.
+# install.sh — install, uninstall, or inspect the herdr-puku-cli adapter.
 #
 # Usage:
 #   install.sh              install
 #   install.sh --uninstall  remove everything the adapter installed
 #   install.sh --status     show current state
 #
-# Used both standalone (./scripts/install.sh) and by the herdr plugin actions
-# declared in herdr-plugin.toml. Override destinations via PUKU_DIR and
-# TOML_DEST env vars (used by tests).
+# PURPOSE
+#   One command wires puku-cli up to Herdr: it copies the hook into
+#   ~/.puku-cli/hooks/, registers it in ~/.puku-cli/settings.json (merged,
+#   never clobbering existing config), and is equally usable standalone and
+#   through the herdr plugin actions (see herdr-plugin.toml).
+#
+# GUARANTEES
+#   * idempotent        — re-running install never duplicates hook entries
+#   * backs up          — settings.json is copied to settings.json.bak.<ts>
+#   * minimal footprint — uninstall removes only what install added
+#   * no surprises      — a user-edited or foreign settings.json keeps its
+#                         contents; only our entries come and go
+#
+# DESTINATIONS can be overridden via env (used by tests):
+#   PUKU_DIR   (default ~/.puku-cli)   — puku-cli user directory
+#   TOML_DEST  (default ~/.config/herdr/agent-detection/puku.toml) — legacy
 
 set -euo pipefail
 
@@ -18,52 +31,40 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 do_install() {
   require_jq
-  mkdir -p "$HOOK_DIR" "$(dirname "$TOML_DEST")"
+  mkdir -p "$HOOK_DIR"
 
-  # 1. Hook script.
+  # 1. Hook script — copied (not symlinked) so plugin updates/reinstalls
+  #    can't invalidate the path puku-cli will execute.
   cp -f "$HOOK_SRC" "$HOOK_DEST"
   chmod +x "$HOOK_DEST"
 
-  # 2. settings.json — backup, then merge hook entries idempotently.
+  # 2. puku-cli settings.json — merge our hook entries, keep everything else.
   settings_install_hooks
 
-  # 3. Detection manifest (fallback when hooks are absent).
-  cp -f "$TOML_SRC" "$TOML_DEST"
-
-  log "Installed."
-  log "Run: herdr server reload-agent-manifests   (or restart Herdr)"
-  log "Verify: herdr agent explain <pane>"
+  log "Installed herdr-puku-cli."
+  log "Restart puku-cli, then verify with: herdr agent list"
+  log "(or: herdr agent explain <pane> --json)"
 }
 
 do_uninstall() {
   require_jq
+
+  # 1. Remove our hook entries from settings.json (backs up first).
   settings_remove_hooks
+
+  # 2. Remove the hook script itself.
   [ -f "$HOOK_DEST" ] && rm -f "$HOOK_DEST"
 
-  # Remove puku.toml only if it still matches ours; a user-customized
-  # manifest stays untouched.
-  if [ -f "$TOML_DEST" ]; then
-    if cmp -s "$TOML_DEST" "$TOML_SRC"; then
-      rm -f "$TOML_DEST"
-    else
-      log "note: puku.toml differs from the adapter copy — left in place"
-    fi
-  fi
+  # 3. Warn about a leftover detection manifest from older versions.
+  legacy_manifest_note
 
-  log "Uninstalled."
-  log "Run: herdr server reload-agent-manifests   (or restart Herdr)"
+  log "Uninstalled herdr-puku-cli."
 }
 
 do_status() {
   echo "Hook script:  $([ -f "$HOOK_DEST" ] && echo "yes ($HOOK_DEST)" || echo "no")"
-  if [ -f "$TOML_DEST" ]; then
-    cmp -s "$TOML_DEST" "$TOML_SRC" \
-      && echo "puku.toml:    yes (matches adapter)" \
-      || echo "puku.toml:    yes (user-modified)"
-  else
-    echo "puku.toml:    no"
-  fi
-  echo "Hook entries: $(settings_hook_count) in $SETTINGS"
+  echo "Hook entries: $(settings_hook_count) in $SETTINGS (8 expected)"
+  legacy_manifest_note
 }
 
 case "${1:-install}" in

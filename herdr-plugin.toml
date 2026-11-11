@@ -1,28 +1,36 @@
-# Puku CLI adapter for Herdr.
-# Reports Puku agent state to Herdr panes and installs the screen-detection fallback.
-# Actions are user-invoked; install via:
-#   herdr plugin install <owner>/<repo> --ref plugin-support
-# or link a local checkout:
-#   herdr plugin link /path/to/puku-cli-adapter-for-herdrtui
+# herdr-puku-cli — Puku CLI integration for Herdr TUI.
+# Reports Puku agent state to Herdr panes via puku-cli lifecycle hooks.
+#
+# HERDR PLUGIN MANIFEST
+#   Herdr owns this file's schema: id, name, version, min_herdr_version are
+#   required; platforms declares where it can run (linux, macos).
+#   Actions are user-invoked commands; see `herdr plugin action list`.
+#   Install from git:  herdr plugin install <owner>/herdr-puku-cli --ref plugin-support
+#   Or link a local checkout for development:
+#                      herdr plugin link /path/to/herdr-puku-cli
 
-id = "puku.adapter"
-name = "Puku CLI adapter"
-version = "0.2.0"
+id = "herdr-puku-cli"
+name = "herdr-puku-cli"
+version = "0.3.0"
 min_herdr_version = "0.7.0"
-description = "Puku CLI state reporting and detection for Herdr"
+description = "Puku CLI state reporting for Herdr"
 platforms = ["linux", "macos"]
 
+# Wire everything up: copy hook into ~/.puku-cli/hooks/ and register it in
+# ~/.puku-cli/settings.json. Run once after plugin install.
 [[actions]]
 id = "setup"
-title = "Install Puku hook + detection manifest"
+title = "Install Puku hook"
 command = ["bash", "scripts/install.sh"]
 
+# Remove everything the adapter installed; other hooks and settings are kept.
 [[actions]]
 id = "remove"
-title = "Uninstall Puku hook + detection manifest"
+title = "Uninstall Puku hook"
 command = ["bash", "scripts/install.sh", "--uninstall"]
 
+# Read-only report of what is currently installed.
 [[actions]]
 id = "status"
-title = "Show Puku adapter install state"
+title = "Show adapter install state"
 command = ["bash", "scripts/install.sh", "--status"]
