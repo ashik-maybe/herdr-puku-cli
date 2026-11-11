@@ -14,7 +14,8 @@ Once installed (see below), everything is automatic:
   - `idle` when the turn ends; Puku is ready for your next message
 - When the Puku session ends, its agent state is cleared from the pane right away.
 - `herdr agent list` shows the pane's agent as `puku`.
-- `herdr agent explain <pane> --json` reports `puku` as a lifecycle authority with the hook source `puku:adapter`.
+- Note: `herdr agent explain` is not available for unsupported custom agents (it answers `agent_not_found` / `agent_explain_unavailable`). Verify with `herdr agent list` or `herdr pane get <pane>` instead.
+- Reports only hold while puku-cli actually runs in the pane: when the pane returns to a plain shell prompt, Herdr clears the agent state after a second or two (same as its built-in integrations).
 
 Outside Herdr panes the hook does nothing.
 
