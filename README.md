@@ -36,7 +36,7 @@ cd herdr-puku-cli
 ./scripts/install.sh
 ```
 
-Either way, restart puku-cli afterwards. The plugin install itself does not wire up hooks — run the `.setup` action once (plain install does it).
+Either way, restart puku-cli afterwards. The plugin install itself does not wire up hooks — run the `.setup` action once (plain install does it). The `--ref plugin-support` pins the not-yet-merged branch; once this lands on the default branch, the ref can be omitted.
 
 ## Uninstall
 
@@ -60,7 +60,13 @@ herdr plugin action invoke herdr-puku-cli.status
 
 ```bash
 ./tests/run.sh   # plain bash suite; sandboxes into a temp HOME, touches nothing
+
+# Try the plugin for real on a Herdr host:
+herdr plugin link /path/to/herdr-puku-cli
+herdr plugin action invoke herdr-puku-cli.status
 ```
+
+For discovery in the Herdr marketplace, the GitHub repo needs the `herdr-plugin` topic (public repos with the topic and a `herdr-plugin.toml` get indexed).
 
 Layout:
 
