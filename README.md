@@ -2,22 +2,23 @@
 
 [Puku CLI](https://puku.sh/puku-cli/) state reporting for [Herdr TUI](https://herdr.dev/tui/). Puku is not in Herdr's supported agent list, so Herdr has nothing built in to show Puku's state — this adapter does it.
 
-Code comments carry the deep documentation. This file covers install, uninstall, and usage.
+## How it works
 
-## Usage
+Puku CLI fires a hook for every lifecycle event (`SessionStart`, `PreToolUse`, `PermissionRequest`, `Stop`, …). Puku writes the event as JSON on the hook's stdin. `bin/herdr-agent-state.sh` reads it and reports the mapped state over Herdr's pane-reporting socket:
 
-Once installed (see below), everything is automatic:
+```
+puku-cli event ─▶ hook (our script) ─▶ herdr pane report-agent ─▶ sidebar / tab / workspace rollup
+```
 
-- Herdr shows Puku's state in the pane and the sidebar, rolled up into tabs and workspaces:
-  - `working` while Puku thinks or runs tools
-  - `blocked` when Puku waits for you — permission dialog, or a structured question
-  - `idle` when the turn ends; Puku is ready for your next message
-- When the Puku session ends, its agent state is cleared from the pane right away.
-- `herdr agent list` shows the pane's agent as `puku`.
-- Note: `herdr agent explain` is not available for unsupported custom agents (it answers `agent_not_found` / `agent_explain_unavailable`). Verify with `herdr agent list` or `herdr pane get <pane>` instead.
-- Reports only hold while puku-cli actually runs in the pane: when the pane returns to a plain shell prompt, Herdr clears the agent state after a second or two (same as its built-in integrations).
+State mapping: `working` while Puku thinks or runs tools, `blocked` when Puku waits for you (permission dialog, or a structured question), `idle` when the turn ends. `SessionEnd` releases Herdr's lifecycle authority immediately instead of waiting for its idle-prompt heuristic. Outside Herdr panes (no `HERDR_PANE_ID`) the hook exits silently and does nothing.
 
-Outside Herdr panes the hook does nothing.
+## Compatibility
+
+| Component | Status |
+|---|---|
+| puku-cli | tested against **1.8.68** (`@puku/puku-cli`, hook payload schema verified from the published bundle) |
+| Herdr | **≥ 0.7.0** (manifest floor); developed and verified against 0.9.5 |
+| Session restore | verified live in a container; **not yet smoke-tested against a real puku account** — `puku-cli --resume <id>` needs a signed-in session |
 
 ## Install
 
@@ -37,7 +38,7 @@ cd herdr-puku-cli
 ./scripts/install.sh
 ```
 
-Either way, restart puku-cli afterwards. The plugin install itself does not wire up hooks — run the `.setup` action once (plain install does it).
+Either way, restart puku-cli afterwards. The plugin install itself does not wire up hooks — run the `.setup` action once (the plain install does it).
 
 ## Uninstall
 
@@ -67,10 +68,6 @@ herdr plugin link /path/to/herdr-puku-cli
 herdr plugin action invoke herdr-puku-cli.status
 ```
 
-For discovery in the Herdr marketplace, the GitHub repo needs the `herdr-plugin` topic (public repos with the topic and a `herdr-plugin.toml` get indexed).
-
-Layout:
-
 ```
 .github/workflows/     CI: shellcheck + tests on push/PR
 herdr-plugin.toml      Herdr plugin manifest (actions: setup, remove, status)
@@ -84,7 +81,9 @@ tests/run.sh           Test suite
 
 ## Notes
 
-- Native session restore is wired up: `SessionStart` payloads carry `session_id` and `transcript_path`, so the adapter reports `--agent-session-id <id> --agent-session-path <transcript> -- puku-cli --resume <id>` to Herdr. After a Herdr server restart, Herdr can resume the pane with the native puku resume command in the same cwd. Fires only for `SessionStart` with a well-formed session id; `--resume` support verified against puku-cli 1.8.68 (`dist/cli.mjs`) and smoke-tested live in a container.
-- Sidebar/tab display is wired up via `report-metadata`: `display_agent=puku` and `title="puku (<model>)"` while the session runs (model from the payload), cleared on `SessionEnd`.
+- Verify with `herdr agent list` / `herdr pane get <pane>`. `herdr agent explain` is not available for unsupported custom agents (`agent_not_found` / `agent_explain_unavailable`) — that's a Herdr limitation, not a bug.
+- Reports hold only while puku-cli actually runs in the pane: when the pane returns to a plain shell prompt, Herdr clears the agent state after a second or two (same as its built-in integrations).
+- `SessionStart` carries `session_id` and `transcript_path`, so the adapter also reports `--agent-session-id` / `--agent-session-path` plus resume argv `puku-cli --resume <id>`. After a Herdr server restart, Herdr can reopen the pane in the same cwd with the native puku resume command.
+- Sidebar/tab display is wired up via `report-metadata`: `display_agent=puku` and `title="puku (<model>)"` while the session runs, cleared on `SessionEnd`.
 - `Notification` with `notification_type` `permission_prompt` or `elicitation_dialog` reports `blocked` (belt-and-braces alongside `PermissionRequest`/`Elicitation`); other notification types are ignored.
-- The screen-detection fallback was removed: Herdr cannot identify Puku's process, so a detection manifest would never match.
+- Screen detection is deliberately absent: Herdr cannot identify Puku's process, so a detection manifest would never match.
