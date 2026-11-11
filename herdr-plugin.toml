@@ -1,0 +1,28 @@
+# Puku CLI adapter for Herdr.
+# Reports Puku agent state to Herdr panes and installs the screen-detection fallback.
+# Actions are user-invoked; install via:
+#   herdr plugin install <owner>/<repo> --ref plugin-support
+# or link a local checkout:
+#   herdr plugin link /path/to/puku-cli-adapter-for-herdrtui
+
+id = "puku.adapter"
+name = "Puku CLI adapter"
+version = "0.2.0"
+min_herdr_version = "0.7.0"
+description = "Puku CLI state reporting and detection for Herdr"
+platforms = ["linux", "macos"]
+
+[[actions]]
+id = "setup"
+title = "Install Puku hook + detection manifest"
+command = ["bash", "scripts/install.sh"]
+
+[[actions]]
+id = "remove"
+title = "Uninstall Puku hook + detection manifest"
+command = ["bash", "scripts/install.sh", "--uninstall"]
+
+[[actions]]
+id = "status"
+title = "Show Puku adapter install state"
+command = ["bash", "scripts/install.sh", "--status"]

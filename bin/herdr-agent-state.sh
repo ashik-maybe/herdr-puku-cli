@@ -46,7 +46,8 @@ case "$EVENT" in
 esac
 
 # Fire-and-forget: Puku hooks run synchronously, keep latency at zero.
-herdr pane report-agent "$HERDR_PANE_ID" \
+HERDR_BIN="${HERDR_BIN_PATH:-herdr}"
+"$HERDR_BIN" pane report-agent "$HERDR_PANE_ID" \
   --source puku:adapter \
   --agent puku \
   --state "$STATE" >/dev/null 2>&1 &

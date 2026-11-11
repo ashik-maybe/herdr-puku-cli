@@ -4,19 +4,38 @@
 
 ## Install
 
-One command installs the hook script, the hook entries in Puku settings, and the detection manifest.
+### As a Herdr plugin (from git)
 
 ```bash
-cd puku-cli-adapter-for-herdrtui
-./install.sh
+herdr plugin install <owner>/puku-cli-adapter-for-herdrtui --ref plugin-support
+herdr plugin action invoke puku.adapter.setup
 herdr server reload-agent-manifests
 ```
 
-Restart Herdr instead of reloading if reload fails.
+Restart Herdr instead of reloading if reload fails. The other actions:
+
+```bash
+herdr plugin action invoke puku.adapter.status
+herdr plugin action invoke puku.adapter.remove
+```
+
+For local development, link a checkout instead of installing:
+
+```bash
+herdr plugin link /path/to/puku-cli-adapter-for-herdrtui
+```
+
+### As a plain script
+
+```bash
+cd puku-cli-adapter-for-herdrtui
+./scripts/install.sh
+herdr server reload-agent-manifests
+```
 
 ## How it works
 
-Puku runs `herdr-agent-state.sh` at each lifecycle event. The script maps the event to a Herdr state and reports it.
+Puku runs `bin/herdr-agent-state.sh` at each lifecycle event. The script maps the event to a Herdr state and reports it.
 
 | Puku event                                 | Herdr state |
 | ------------------------------------------ | ----------- |
@@ -26,7 +45,9 @@ Puku runs `herdr-agent-state.sh` at each lifecycle event. The script maps the ev
 
 Outside Herdr panes the script exits silently. It never writes to stdout, so it never interferes with Puku tool results.
 
-`puku.toml` is the fallback. When hooks are absent, Herdr reads Puku's prompt markers from the screen instead.
+`config/puku.toml` is the fallback. When hooks are absent, Herdr reads Puku's prompt markers from the screen instead.
+
+Note: installing the plugin does not wire up Puku hooks by itself. Run the `puku.adapter.setup` action (or `./scripts/install.sh`) once after install. Plugin v1 cannot register Puku hooks or agent-detection manifests; both are applied by the setup action.
 
 ## Verify
 
@@ -40,12 +61,31 @@ herdr agent explain <pane> --json
 ## Uninstall
 
 ```bash
-./install.sh --uninstall
+./scripts/install.sh --uninstall   # or: herdr plugin action invoke puku.adapter.remove
 ```
 
 Removes only what install added. Other hooks stay untouched. A user-edited `puku.toml` stays in place with a note printed.
 
-`./install.sh --status` shows the current install state.
+`./scripts/install.sh --status` shows the current install state.
+
+## Layout
+
+```
+herdr-plugin.toml        Herdr plugin manifest (actions: setup, remove, status)
+bin/herdr-agent-state.sh Puku lifecycle hook → herdr pane report-agent
+config/puku.toml         Herdr agent-detection manifest (screen fallback)
+scripts/lib.sh           Shared install logic (paths, settings.json merge)
+scripts/install.sh       install / uninstall / status entrypoint
+tests/run.sh             Plain bash tests; runs against a temp HOME
+```
+
+## Tests
+
+```bash
+./tests/run.sh
+```
+
+Requires `jq`. Uses a temporary HOME; your real `~/.puku-cli` is never touched.
 
 ## License
 
@@ -72,13 +112,13 @@ This adapter reports Puku CLI activity to Herdr TUI. Puku is not a supported Her
 
 ## Steps
 
-1. The install script copies the hook script to `~/.puku-cli/hooks/herdr-agent-state.sh`.
-2. The install script adds hook entries to `~/.puku-cli/settings.json`. It backs up the file first.
-3. The install script copies `puku.toml` to `~/.config/herdr/agent-detection/puku.toml`.
+1. The setup action copies the hook script to `~/.puku-cli/hooks/herdr-agent-state.sh`.
+2. The setup action adds hook entries to `~/.puku-cli/settings.json`. It backs up the file first.
+3. The setup action copies `config/puku.toml` to `~/.config/herdr/agent-detection/puku.toml`.
 4. Puku runs the hook script at each lifecycle event. The script reads the payload on stdin.
 5. The script checks `HERDR_ENV`. When the value is not `1`, the script exits silently.
 6. The script maps the event to a state. It sends the state with `herdr pane report-agent`.
 7. Herdr shows the state in the sidebar and rolls it up to the tab and workspace.
-8. Run `./install.sh --uninstall` to remove the adapter. The uninstall removes only adapter entries.
+8. Run the remove action to uninstall the adapter. The uninstall removes only adapter entries.
 
 </details>
