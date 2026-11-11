@@ -60,9 +60,17 @@ fi
 SOURCE="puku:adapter"
 AGENT="puku"
 
-# --- Monotonic-ish sequence number (millisecond timestamp). -------------------
-# date +%s%N is GNU-specific; fall back to whole seconds if %N is unsupported.
-SEQ="$(date +%s%N 2>/dev/null || date +%s)"
+# --- Monotonic-ish sequence number (integer microsecond timestamp). -----------
+# Relevance, not precision, is all we need: Herdr ignores out-of-order reports
+# whose seq is not higher than the last accepted one. NOT portable via
+# `date +%s%N` (BSD date on macOS prints a literal "N").
+if [ -n "${EPOCHREALTIME:-}" ]; then
+  SEQ="${EPOCHREALTIME/./}"                                 # bash ≥5, µs
+elif command -v perl >/dev/null 2>&1; then
+  SEQ="$(perl -MTime::HiRes=time -e 'printf "%d", time()*1e6')"  # macOS/Linux
+else
+  SEQ="$(date +%s)000000"                                   # coarse fallback
+fi
 
 # --- Prefer the Herdr binary Herdr itself injected; fall back to PATH. -------
 HERDR_BIN="${HERDR_BIN_PATH:-herdr}"
