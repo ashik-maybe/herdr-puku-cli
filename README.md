@@ -88,5 +88,3 @@ tests/run.sh           Test suite
 - Sidebar/tab display is wired up via `report-metadata`: `display_agent=puku` and `title="puku (<model>)"` while the session runs (model from the payload), cleared on `SessionEnd`.
 - `Notification` with `notification_type` `permission_prompt` or `elicitation_dialog` reports `blocked` (belt-and-braces alongside `PermissionRequest`/`Elicitation`); other notification types are ignored.
 - The screen-detection fallback was removed: Herdr cannot identify Puku's process, so a detection manifest would never match.
-
-
