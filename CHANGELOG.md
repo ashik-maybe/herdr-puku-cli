@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.2
+
+- `SessionStart` reports `--agent-session-path <transcript_path>` alongside `--agent-session-id` (native resume now knows the session file).
+- `SessionStart` reports display metadata: `herdr pane report-metadata --display-agent puku --title "puku (<model>)"` (model from payload, truncated); `SessionEnd` clears both. Verified live: `herdr agent list` shows the title and display agent while the session runs, gone after SessionEnd.
+
 ## 0.3.1
 
 - `SessionStart` now also reports `--agent-session-id <sid>` plus resume argv `puku-cli --resume <sid>` to Herdr, enabling native pane resume after a server restart (puku-cli 1.8.68 supports `--resume <id>`; payload `session_id` verified from the bundle's hook schema).

@@ -36,6 +36,8 @@
 #                        permission dialog that stops the world; matches
 #                        PermissionRequest. Other notification types (idle_prompt,
 #                        auth_success, …) report nothing.
+#   SessionStart        → report-metadata --display-agent puku --title "puku (<model>)"
+#   SessionEnd          → report-metadata --clear-display-agent --clear-title
 #   (anything else)    → no-op
 #
 # ORDERING
@@ -87,6 +89,8 @@ EVENT="$(printf '%s' "$INPUT" | jq -r '.hook_event_name // empty' 2>/dev/null)"
 TOOL="$(printf '%s' "$INPUT"  | jq -r '.tool_name // empty'       2>/dev/null)"
 NOTIF="$(printf '%s' "$INPUT" | jq -r '.notification_type // empty' 2>/dev/null)"
 SID="$(printf '%s' "$INPUT"   | jq -r '.session_id // empty'       2>/dev/null)"
+TRANSCRIPT="$(printf '%s' "$INPUT" | jq -r '.transcript_path // empty' 2>/dev/null)"
+MODEL="$(printf '%s' "$INPUT"   | jq -r '.model // empty'             2>/dev/null)"
 
 # --- report <state> [message] -------------------------------------------------
 # Fire-and-forget: background the CLI call, discard all output, never fail.
@@ -112,10 +116,38 @@ report() {
 # the resume argv: first element a plain command name (no slashes/wrappers),
 # no apostrophes, ≤64 args total per pane. `puku-cli --resume <uuid>` qualifies.
 report_session() {
-  "$HERDR_BIN" pane report-agent "$HERDR_PANE_ID" \
+  if [ -n "$TRANSCRIPT" ]; then
+    "$HERDR_BIN" pane report-agent "$HERDR_PANE_ID" \
+      --source "$SOURCE" --agent "$AGENT" \
+      --state working --seq "$SEQ" \
+      --agent-session-id "$SID" --agent-session-path "$TRANSCRIPT" -- puku-cli --resume "$SID" \
+      >/dev/null 2>&1 &
+  else
+    "$HERDR_BIN" pane report-agent "$HERDR_PANE_ID" \
+      --source "$SOURCE" --agent "$AGENT" \
+      --state working --seq "$SEQ" \
+      --agent-session-id "$SID" -- puku-cli --resume "$SID" \
+      >/dev/null 2>&1 &
+  fi
+}
+
+# --- sidebar/tab display metadata (display-agent + title). --------------------
+# Pure display sugar on top of the lifecycle report; failures are invisible and
+# harmless. TITLE/MODEL are argv values, never model-authored raw text.
+report_meta() {
+  local args=(pane report-metadata "$HERDR_PANE_ID"
+              --source "$SOURCE" --agent "$AGENT"
+              --display-agent "puku" --seq "$SEQ")
+  # Title: "puku (<model>)" when SessionStart told us the model, else "puku".
+  local title="puku"; [ -n "$MODEL" ] && title="puku ($(printf '%s' "$MODEL" | cut -c1-64))"
+  args+=(--title "$title")
+  "$HERDR_BIN" "${args[@]}" >/dev/null 2>&1 &
+}
+
+clear_meta() {
+  "$HERDR_BIN" pane report-metadata "$HERDR_PANE_ID" \
     --source "$SOURCE" --agent "$AGENT" \
-    --state working --seq "$SEQ" \
-    --agent-session-id "$SID" -- puku-cli --resume "$SID" \
+    --clear-display-agent --clear-title --seq "$SEQ" \
     >/dev/null 2>&1 &
 }
 
@@ -135,6 +167,7 @@ case "$EVENT" in
     else
       report working
     fi
+    report_meta
     ;;
   UserPromptSubmit|PreToolUse)
     report working
@@ -163,6 +196,7 @@ case "$EVENT" in
     ;;
   SessionEnd)
     release
+    clear_meta
     ;;
   *)
     # Unknown or intentionally unmapped event (e.g. PostToolUse, SubagentStart).

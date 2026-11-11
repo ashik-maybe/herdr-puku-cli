@@ -78,8 +78,15 @@ run_hook '{"hook_event_name":"SessionStart","session_id":"abc-123-def"}'
 check "SessionStart reports working + resume argv" bash -c "grep -q -- '--state working' '$STUB_LOG' && grep -q -- '-- puku-cli --resume abc-123-def' '$STUB_LOG' && grep -q -- '--agent-session-id abc-123-def' '$STUB_LOG'"
 
 : > "$STUB_LOG"
+: > "$STUB_LOG"
+run_hook '{"hook_event_name":"SessionStart","session_id":"abc-123","transcript_path":"/tmp/t.jsonl","model":"claude-sonnet-4"}'
+check "SessionStart reports --agent-session-path" grep -q -- "--agent-session-path /tmp/t.jsonl" "$STUB_LOG"
+check "SessionStart report-metadata sets display/title" bash -c "grep -q 'report-metadata' '$STUB_LOG' && grep -q -- '--display-agent puku' '$STUB_LOG' && grep -q 'puku (claude-sonnet-4)' '$STUB_LOG'"
+
+: > "$STUB_LOG"
 run_hook '{"hook_event_name":"SessionEnd"}'
 check "SessionEnd releases the agent"         grep -q "release-agent" "$STUB_LOG"
+check "SessionEnd clears metadata"            bash -c "grep -q 'report-metadata' '$STUB_LOG' && grep -q -- '--clear-display-agent' '$STUB_LOG' && grep -q -- '--clear-title' '$STUB_LOG'"
 
 echo "== install =="
 check "install runs"                          bash "$REPO_DIR/scripts/install.sh"
